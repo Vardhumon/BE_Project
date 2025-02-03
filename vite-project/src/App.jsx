@@ -69,6 +69,7 @@ import Login from "./Login";
 import Signup from "./Signup";
 import UserProfile from "./UserProfile";
 import ProjectRecommendation from "./ProjectRecommendation";
+import View from "./View";
 
 function App() {
   const [user, setUser] = useState(null);
@@ -109,6 +110,7 @@ function App() {
             <div className="flex">
               {/* <UserProfile user={user} /> */}
               <ProjectRecommendation user={user} />
+              {/* <View /> */}
             </div>
           </div>
         )}
