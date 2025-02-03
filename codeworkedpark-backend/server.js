@@ -5,7 +5,8 @@ const jwt = require("jsonwebtoken");
 const cors = require("cors");
 require("dotenv").config();
 const projects = require("./projects.json");
-
+const { cosineSimilarity,enhanceSteps } = require("./utils");
+const { fetchDynamicResources } = require("./resourceServices");
 const app = express();
 const PORT = process.env.PORT || 5000;
 
@@ -29,16 +30,34 @@ const taskSchema = new mongoose.Schema({
   details: String, // Detailed steps
 });
 
+// const projectSchema = new mongoose.Schema({
+//   title: String,
+//   description: String,
+//   url: String,
+//   stars: Number,
+//   tags: [String],
+//   codeQuality: Number,
+//   structure: [String],
+//   tasks: [taskSchema], // Breakdown of tasks
+// });
+
+
 const projectSchema = new mongoose.Schema({
   title: String,
   description: String,
-  url: String,
-  stars: Number,
-  tags: [String],
-  codeQuality: Number,
-  structure: [String],
-  tasks: [taskSchema], // Breakdown of tasks
+  techStack: [String],
+  difficultyLevel: String,
+  steps: [
+    {
+      step: String,
+      subSteps: [String],
+    },
+  ],
+  testingMetrics: [String],
+  tag: String,
+  enhancements: [String],
 });
+const Project = mongoose.model("Project", projectSchema);
 
 const taskProgressSchema = new mongoose.Schema({
   taskId: mongoose.Schema.Types.ObjectId,
@@ -317,5 +336,159 @@ app.post("/api/update-task-progress", async (req, res) => {
     res.status(200).json({ message: "Task progress updated", user });
   } catch (err) {
     res.status(500).json({ message: "Server error" });
+  }
+});
+
+
+// Example of tech stack comparison function (this can be expanded as per your actual implementation)
+function getTechVector(techStack, techList) {
+  return techList.map(tech => techStack.includes(tech) ? 1 : 0);
+}
+
+
+// const enhancements = [
+//   "Enable Multi-cluster Support",
+//   "Implement Continuous Integration/Continuous Deployment (CI/CD) Pipelines",
+//   "Add Blue-Green or Canary Deployments",
+//   "Secure ArgoCD Access with OAuth2",
+//   "Enable Automated Scaling of Applications",
+//   "Implement Secrets Management with HashiCorp Vault",
+//   "Add Custom Resource Definitions (CRDs)",
+//   "Integrate Logging and Monitoring",
+//   "Optimize Helm Chart Repositories",
+//   "Implement GitOps Security Best Practices"
+// ];
+
+// // Helper function to get a random enhancement
+// const getRandomEnhancement = (enhancements) => {
+//   const randomIndex = Math.floor(Math.random() * enhancements.length);
+//   return enhancements[randomIndex];
+// };
+// app.post("/api/getProject", async (req, res) => {
+//   try {
+//     const { userStack } = req.body; // Assuming the user's tech stack is passed in the request body
+//     // console.log(userStack)
+//     // List of all techs (to compare against)
+//     const techList = ["ArgoCD", "Kubernetes", "Helm", "GitHub", "Jenkins", "Docker","React","ML"];
+    
+//     // Get all projects from the database
+//     const projects = await Project.find();
+//     // console.log(projects)
+//     // Convert the user's tech stack to a binary vector
+//     const userVector = getTechVector(userStack, techList);
+
+//     // Compute similarity scores between the user's stack and each project
+//     // const similarities = projects.map(project => {
+//     //   const projectVector = getTechVector(project.techStack, techList);
+//     //   return cosineSimilarity(userVector, projectVector);
+//     // });
+//     // console.log(similarities)
+//     const similarities = projects.map(project => {
+//       const projectVector = getTechVector(project.techStack, techList);
+//       console.log("User vector:", userVector);
+//       console.log("Project vector:", projectVector);
+//       console.log("Cosine similarity:", cosineSimilarity(userVector, projectVector));
+//       return cosineSimilarity(userVector, projectVector);
+//     });
+
+
+
+//     // Get the index of the most similar project
+//     const bestProjectIndex = similarities.indexOf(Math.max(...similarities));
+//     console.log(bestProjectIndex)
+//     const bestProject = projects[bestProjectIndex];
+//     console.log(bestProject)
+//     // Select a random enhancement for the project
+//     const randomEnhancement = getRandomEnhancement(enhancements);
+
+//     // Assign a deadline based on difficulty level
+//     let deadline;
+//     switch (bestProject.difficultyLevel) {
+//       case "Easy":
+//         deadline = "1 week";
+//         break;
+//       case "Medium":
+//         deadline = "2 weeks";
+//         break;
+//       case "Hard":
+//         deadline = "3 weeks";
+//         break;
+//       default:
+//         deadline = "2 weeks";
+//     }
+
+//     // Prepare the final response with all the necessary data
+//     const finalProject = {
+//       ...bestProject.toObject(),
+//       enhancements: randomEnhancement,
+//       deadline: deadline,
+//     };
+
+//     res.status(200).json(finalProject);
+//   } catch (error) {
+//     res.status(500).json({ message: "Error selecting project", error: error.message });
+//   }
+// });
+
+
+
+
+
+// app.post("/api/getProject", async (req, res) => {
+//   try {
+//     const { userStack, experienceLevel } = req.body; // Added experience level
+
+//     const techList = ["ArgoCD", "Kubernetes", "Helm", "GitHub", "Docker", "Terraform", "Jenkins"];
+//     const projects = await Project.find();
+
+//     const userVector = techList.map(tech => userStack.includes(tech) ? 1 : 0);
+//     const similarities = projects.map(project => {
+//       const projectVector = techList.map(tech => project.techStack.includes(tech) ? 1 : 0);
+//       return cosineSimilarity(userVector, projectVector);
+//     });
+
+//     const bestProjectIndex = similarities.indexOf(Math.max(...similarities));
+//     let bestProject = projects[bestProjectIndex].toObject();
+
+//     // Apply dynamic enhancements based on user experience level
+//     bestProject.steps = enhanceSteps(bestProject.steps, experienceLevel);
+
+//     // Assign Deadline
+//     bestProject.deadline = bestProject.difficultyLevel === "Easy" ? "1 week" : bestProject.difficultyLevel === "Medium" ? "2 weeks" : "3 weeks";
+
+//     res.status(200).json(bestProject);
+//   } catch (error) {
+//     res.status(500).json({ message: "Error selecting project", error: error.message });
+//   }
+// });
+
+
+
+app.post("/api/getProject", async (req, res) => {
+  try {
+    const { userStack, userId, experienceLevel } = req.body;
+    
+    const projects = await Project.find();
+    const bestProject = projects[Math.floor(Math.random() * projects.length)].toObject();
+
+    // Enhance steps with additional sub-steps
+    bestProject.steps = await Promise.all(bestProject.steps.map(async step => {
+      const dynamicResources = await fetchDynamicResources(step.step);
+      return { ...step, resources: dynamicResources };
+    }));
+
+    // Assign Deadline
+    bestProject.deadline = bestProject.difficultyLevel === "Easy" ? "1 week" : bestProject.difficultyLevel === "Medium" ? "2 weeks" : "3 weeks";
+
+    // // Track user progress
+    // let progress = await UserProgress.findOne({ userId, projectId: bestProject._id });
+    // if (!progress) {
+    //   progress = new UserProgress({ userId, projectId: bestProject._id, completedSteps: [], xp: 0 });
+    //   await progress.save();
+    // }
+
+    res.status(200).json({ project: bestProject});
+  } catch (error) {
+    res.status(500).json({ message: "Error fetching project", error: error.message });
   }
 });
