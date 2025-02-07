@@ -16,6 +16,7 @@ export default function View() {
       })
       .then((res) => {
         setProject(res.data.project);
+        console.log(res.data)
         setLoading(false);
       })
       .catch((err) => {

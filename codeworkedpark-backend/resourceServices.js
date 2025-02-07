@@ -9,10 +9,10 @@ async function fetchDynamicResources(query) {
         q: `${query} tutorial`,
         part: "snippet",
         maxResults: 2,
-        key: process.env.YOUTUBE_API_KEY
+        key: "AIzaSyDwRyy4G6Onw0u6N7z7jjgb6E5sBGAGARQ"
       }
     });
-
+    
     const youtubeResources = youtubeRes.data.items.map(item => ({
       title: item.snippet.title,
       url: `https://www.youtube.com/watch?v=${item.id.videoId}`
@@ -28,7 +28,9 @@ async function fetchDynamicResources(query) {
       url: repo.html_url
     }));
 
-    return [...youtubeResources, ...githubResources];
+    console.log("Fetched resources:", [...githubResources]);
+
+    return [...youtubeResources,...githubResources];
   } catch (error) {
     console.error("Error fetching resources:", error.message);
     return [];
