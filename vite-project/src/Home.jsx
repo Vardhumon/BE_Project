@@ -5,8 +5,8 @@ export default function HomePage() {
   const navigate = useNavigate();
 
   return (
-    <div className="relative flex flex-col items-center justify-center h-screen bg-black text-white overflow-hidden">
-      {/* Background Floating Elements - Covers the Whole Screen */}
+    <div className="relative flex flex-col items-center justify-center min-h-screen bg-black text-white overflow-hidden px-6">
+      {/* Floating Background Elements */}
       <div className="absolute inset-0 overflow-hidden">
         {[...Array(10)].map((_, i) => (
           <motion.div
@@ -31,7 +31,7 @@ export default function HomePage() {
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 1 }}
-        className="text-4xl md:text-6xl font-bold"
+        className="text-4xl md:text-6xl font-bold text-center"
       >
         Welcome to CodeWorked Park
       </motion.h1>
@@ -40,27 +40,73 @@ export default function HomePage() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 1, delay: 0.5 }}
-        className="text-lg text-gray-300 mt-4 max-w-lg text-center"
+        className="text-lg text-gray-300 mt-4 max-w-xl text-center"
       >
-        A place where developers get AI-powered project suggestions and collaborate to build amazing things!
+        Your AI-powered coding hub! Get project suggestions, collaborate, and enhance your skills.
       </motion.p>
 
-      {/* Updated Get Started Button with Glow Effect */}
+      {/* Call to Action Buttons */}
       <motion.div
         initial={{ opacity: 0, scale: 0.8 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 1, delay: 1 }}
-        className="mt-6 relative"
+        className="mt-6 flex space-x-4"
       >
         <button
           onClick={() => navigate("/choices")}
-          className="relative px-6 py-3 text-lg font-bold bg-transparent text-white border-2 border-white rounded-lg transition-all hover:bg-white hover:text-black"
+          className="px-6 py-3 text-lg font-bold bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all"
         >
           Create Project
-          {/* Outer Glow Effect */}
-          <span className="absolute inset-0 rounded-lg border-2 border-white opacity-40 group-hover:opacity-100 transition-all blur-lg"></span>
+        </button>
+        <button
+          onClick={() => navigate("/community")}
+          className="px-6 py-3 text-lg font-bold bg-gray-800 text-white border border-gray-600 rounded-lg hover:bg-gray-700 transition-all"
+        >
+          Join Community
         </button>
       </motion.div>
+
+      {/* Features Section */}
+      <motion.div
+        initial={{ opacity: 0, y: 30 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 1.2, delay: 1.5 }}
+        className="mt-20 grid grid-cols-1 md:grid-cols-3 gap-6 text-center"
+      >
+        {/* Feature 1 */}
+        <div className="p-6 bg-[#1E1E1E] border border-gray-700 rounded-lg shadow-lg">
+          <h2 className="text-xl font-semibold">🚀 AI-Powered Project Ideas</h2>
+          <p className="text-gray-400 mt-2">
+            Get personalized project suggestions based on your tech stack.
+          </p>
+        </div>
+
+        {/* Feature 2 */}
+        <div className="p-6 bg-[#1E1E1E] border border-gray-700 rounded-lg shadow-lg">
+          <h2 className="text-xl font-semibold">🤝 Collaborate with Developers</h2>
+          <p className="text-gray-400 mt-2">
+            Join a thriving community to work on real-world projects together.
+          </p>
+        </div>
+
+        {/* Feature 3 */}
+        <div className="p-6 bg-[#1E1E1E] border border-gray-700 rounded-lg shadow-lg">
+          <h2 className="text-xl font-semibold">📈 Track Your Progress</h2>
+          <p className="text-gray-400 mt-2">
+            Set deadlines, deploy projects, and showcase your work.
+          </p>
+        </div>
+      </motion.div>
+
+      {/* Footer */}
+      <motion.footer
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 1.5, delay: 2 }}
+        className="mt-16 text-gray-500 text-sm text-center"
+      >
+        © {new Date().getFullYear()} CodeWorked Park. All rights reserved.
+      </motion.footer>
     </div>
   );
 }
