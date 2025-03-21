@@ -4,10 +4,10 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const cors = require("cors");
 require("dotenv").config();
-const { cosineSimilarity, enhanceSteps } = require("./utils");
-const { fetchDynamicResources } = require("./resourceServices");
-const { Octokit } = require("@octokit/rest");
-const { exec } = require("child_process");
+// const { cosineSimilarity, enhanceSteps } = require("./utils");
+// const { fetchDynamicResources } = require("./resourceServices");
+// const { Octokit } = require("@octokit/rest");
+// const { exec } = require("child_process");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
