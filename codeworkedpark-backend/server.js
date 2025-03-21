@@ -64,17 +64,30 @@ const taskProgressSchema = new mongoose.Schema({
   completed: { type: Boolean, default: false },
 });
 
+// const userSchema = new mongoose.Schema({
+//   name: { type: String, required: true },
+//   email: { type: String, required: true, unique: true },
+//   password: { type: String, required: true },
+//   techStack: { type: String, default: "" },  // Changed to string to store comma-separated values
+//   experienceLevel: { type: String, default: "" },  // Added experienceLevel
+//   projects: [{
+//     projectId: mongoose.Schema.Types.ObjectId,
+//     tasks: [taskProgressSchema],
+//   }],
+// });
+
 const userSchema = new mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
-  techStack: { type: String, default: "" },  // Changed to string to store comma-separated values
-  experienceLevel: { type: String, default: "" },  // Added experienceLevel
+  techStack: [{ type: String}],
+  experienceLevel: { type: String, default: "" },
   projects: [{
-    projectId: mongoose.Schema.Types.ObjectId,
+    projectId: { type: mongoose.Schema.Types.ObjectId, ref: "Project" },  // Ensure ref is set
     tasks: [taskProgressSchema],
   }],
 });
+
 
 
 const User = mongoose.model("User", userSchema);
@@ -469,26 +482,68 @@ app.post("/api/getProject", async (req, res) => {
     const { userStack, userId, experienceLevel } = req.body;
     
     const projects = await Project.find();
+    console.log(projects)
     const bestProject = projects[Math.floor(Math.random() * projects.length)].toObject();
 
-    // Enhance steps with additional sub-steps
     bestProject.steps = await Promise.all(bestProject.steps.map(async step => {
       const dynamicResources = await fetchDynamicResources(step.step);
       return { ...step, resources: dynamicResources };
     }));
+    console.log(bestProject.steps)
 
-    // Assign Deadline
+
+    bestProject.steps = enhanceSteps(bestProject.steps, experienceLevel);
+
     bestProject.deadline = bestProject.difficultyLevel === "Easy" ? "1 week" : bestProject.difficultyLevel === "Medium" ? "2 weeks" : "3 weeks";
-
-    // // Track user progress
-    // let progress = await UserProgress.findOne({ userId, projectId: bestProject._id });
-    // if (!progress) {
-    //   progress = new UserProgress({ userId, projectId: bestProject._id, completedSteps: [], xp: 0 });
-    //   await progress.save();
-    // }
-
-    res.status(200).json({ project: bestProject});
+    res.status(200).json({ project: bestProject });
   } catch (error) {
     res.status(500).json({ message: "Error fetching project", error: error.message });
+  }
+});
+
+
+app.post("/api/acceptProject", async (req, res) => {
+  try {
+    const { userId, projectId } = req.body;
+    
+    // Ensure projectId is in ObjectId format
+    // const projectObjectId = mongoose.Types.ObjectId.createFromTime(projectId);
+    // console.log(projectObjectId)
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: "User not found" });
+    // console.log(user)
+    // Check if the project is already accepted
+    const isProjectAccepted = user.projects.some(p => p.projectId.equals(projectId));
+    if (isProjectAccepted) {
+      return res.status(400).json({ message: "Project already accepted" });
+    }
+
+    // Add project to user's profile
+    user.projects.push({ projectId: projectId });
+    await user.save();
+
+    res.status(200).json({ message: "Project accepted successfully" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Error accepting project", error: error.message });
+  }
+});
+
+app.post("/api/getUserProjects", async (req, res) => {
+  try {
+    const { userId } = req.body;
+    
+    const user = await User.findById(userId).populate("projects.projectId");
+    console.log(user)
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    // Filter out any null projectId values (in case of invalid references)
+    const validProjects = user.projects
+      .map(p => p.projectId)
+      .filter(project => project !== null);
+
+    res.status(200).json({ projects: validProjects });
+  } catch (error) {
+    res.status(500).json({ message: "Error fetching projects", error: error.message });
   }
 });
