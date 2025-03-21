@@ -3,7 +3,9 @@ const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const cors = require("cors");
+const fs = require("fs");
 require("dotenv").config();
+const projects = require("./projects.json");
 // const { cosineSimilarity, enhanceSteps } = require("./utils");
 // const { fetchDynamicResources } = require("./resourceServices");
 // const { Octokit } = require("@octokit/rest");
@@ -13,8 +15,30 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Middleware
-app.use(cors());
+app.use(cors({ origin: '*' }));
 app.use(express.json());
+
+
+const importProjects = async () => {
+  try {
+    const data = fs.readFileSync("projects.json", "utf-8"); // Read the file
+    const projects = JSON.parse(data); // Parse JSON
+    await Project.deleteMany();
+    for (const project of projects) {
+      const existingProject = await Project.findOne({ title: project.title });
+      if (!existingProject) {
+        await Project.create(project);
+        console.log(`Added project: ${project.title}`);
+      } else {
+        console.log(`Project already exists: ${project.title}`);
+      }
+    }
+    console.log("Project import complete.");
+  } catch (error) {
+    console.error("Error importing projects:", error);
+  }
+};
+
 
 // MongoDB Connection
 mongoose
@@ -22,7 +46,10 @@ mongoose
     useNewUrlParser: true,
     useUnifiedTopology: true,
   })
-  .then(() => console.log("MongoDB connected"))
+  .then(async () => {
+    console.log("MongoDB connected")
+    // await importProjects();
+  })
   .catch((err) => console.error(err));
 
 // Schemas and Models
@@ -31,7 +58,6 @@ const taskSchema = new mongoose.Schema({
   summary: String,
   details: String,
 });
-
 const projectSchema = new mongoose.Schema({
   title: String,
   description: String,
@@ -46,7 +72,7 @@ const projectSchema = new mongoose.Schema({
   testingMetrics: [String],
   tag: String,
   enhancements: [String],
-});
+}, { timestamps: true });
 const Project = mongoose.model("Project", projectSchema);
 
 const taskProgressSchema = new mongoose.Schema({
@@ -63,6 +89,7 @@ const userSchema = new mongoose.Schema({
   projects: [
     {
       projectId: { type: mongoose.Schema.Types.ObjectId, ref: "Project" },
+      repoUrl: { type: String },
       tasks: [taskProgressSchema],
     },
   ],
@@ -150,21 +177,22 @@ app.post("/api/getProject", async (req, res) => {
     const filteredProjects = projects.filter((project) =>
       project.techStack.some((tech) => userStack.includes(tech))
     );
+    // console.log(filteredProjects);
 
     const availableProjects = filteredProjects.filter(
       (project) => !recommendedProjectsSession.has(project._id.toString())
     );
-
+    // console.log(availableProjects);
     if (availableProjects.length === 0) {
       return res.status(200).json({ message: "No more projects to recommend" });
     }
 
     const randomIndex = Math.floor(Math.random() * availableProjects.length);
     const recommendedProject = availableProjects[randomIndex].toObject();
-
+    console.log(recommendedProject);
     recommendedProjectsSession.add(recommendedProject._id.toString());
 
-    recommendedProject.steps = enhanceSteps(recommendedProject.steps, experienceLevel);
+    // recommendedProject.steps = enhanceSteps(recommendedProject.steps, experienceLevel);
     recommendedProject.deadline =
       recommendedProject.difficultyLevel === "Easy"
         ? "1 week"
@@ -179,45 +207,62 @@ app.post("/api/getProject", async (req, res) => {
 });
 
 app.post("/api/acceptProject", async (req, res) => {
-  const { userId, projectId } = req.body;
-  console.log(userId, projectId);
+  const { userId, projectId, repoUrl } = req.body;
+
   try {
     const user = await User.findById(userId);
-    console.log("user",user);
     if (!user) return res.status(404).json({ message: "User not found" });
 
+    const project = await Project.findById(projectId);
+    if (!project) return res.status(404).json({ message: "Project not found" });
+
+    // Check if project is already accepted
     const isProjectAccepted = user.projects.some((p) => p.projectId.equals(projectId));
     if (isProjectAccepted) return res.status(400).json({ message: "Project already accepted" });
 
-    user.projects.push({ projectId });
+    // Initialize tasks for the user
+    const taskProgress = project.steps.map((step) => ({
+      taskId: step._id, // Ensure the steps in Project schema have `_id` field
+      completed: false,
+    }));
+
+    // Add project with initialized tasks
+    user.projects.push({ projectId, repoUrl, tasks: taskProgress });
     await user.save();
 
-    res.status(200).json({ message: "Project accepted successfully" });
+    res.status(200).json({ message: "Project accepted successfully", repoUrl });
   } catch (err) {
     res.status(500).json({ message: "Error accepting project", error: err.message });
   }
 });
 
+
+
 app.post("/api/update-task-progress", async (req, res) => {
-  const { userId, projectId, taskId, completed } = req.body;
+  const { userId, projectId, completedSteps } = req.body;
+
   try {
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ message: "User not found" });
 
-    const project = user.projects.find((p) => p.projectId.equals(projectId));
+    const project = user.projects.find((p) => String(p.projectId) === String(projectId));
     if (!project) return res.status(404).json({ message: "Project not found" });
 
-    const task = project.tasks.find((t) => t.taskId.equals(taskId));
-    if (!task) return res.status(404).json({ message: "Task not found" });
+    // Iterate over completed steps and update them
+    for (const [stepId, subSteps] of Object.entries(completedSteps)) {
+      const task = project.tasks.find((t) => String(t.taskId) === String(stepId));
+      if (task) {
+        task.completed = true;
+      }
+    }
 
-    task.completed = completed;
     await user.save();
-
-    res.status(200).json({ message: "Task progress updated", user });
+    res.status(200).json({ message: "Task progress updated successfully", user });
   } catch (err) {
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ message: "Server error", error: err.message });
   }
 });
+
 
 app.post("/api/getUserProjects", async (req, res) => {
   try {
@@ -237,5 +282,82 @@ app.post("/api/getUserProjects", async (req, res) => {
     res.status(500).json({ message: "Error fetching projects", error: error.message });
   }
 });
+
+app.post("/api/getUserProgress", async (req, res) => {
+  try {
+    const { userId } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ error: "User ID is required" });
+    }
+
+    // Fetch the user document
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // Extract project progress
+    const progress = user.projects.map((project) => ({
+      projectId: project.projectId,
+      tasks: project.tasks.map((task) => ({
+        taskId: task.taskId,
+        completed: task.completed,
+      })),
+    }));
+
+    res.json({ progress });
+  } catch (error) {
+    console.error("Error fetching user progress:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+
+
+
+app.post("/api/verifyGithubRepo", async (req, res) => {
+  try {
+    const { repoUrl } = req.body;
+
+    // Extract the owner and repo name from the URL
+    const match = repoUrl.match(/github\.com\/([^\/]+)\/([^\/]+)/);
+    if (!match) {
+      return res.status(400).json({ verified: false, message: "Invalid GitHub URL." });
+    }
+
+    const [, owner, repo] = match;
+    const apiUrl = `https://api.github.com/repos/${owner}/${repo}`;
+
+    const response = await fetch(apiUrl, {
+      method: "GET",
+      headers: {
+        "Accept": "application/vnd.github.v3+json",
+      },
+    });
+
+    if (response.status === 404) {
+      return res.status(404).json({ verified: false, message: "Repository not found." });
+    }
+
+    if (!response.ok) {
+      return res.status(500).json({ verified: false, message: "GitHub API error." });
+    }
+
+    const data = await response.json();
+
+    if (!data.private) {
+      return res.json({ verified: true });
+    } else {
+      return res.json({ verified: false, message: "Repository is private." });
+    }
+  } catch (error) {
+    res.status(500).json({ verified: false, message: "Error verifying repository." });
+  }
+});
+
+
+
 // Start Server
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
