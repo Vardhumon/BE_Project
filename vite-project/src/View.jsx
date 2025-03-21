@@ -224,7 +224,7 @@ export default function View() {
 
   const fetchProject = () => {
     setLoading(true);
-    const userStack = JSON.parse(localStorage.getItem("userStack")) || ["Github"];
+    const userStack = JSON.parse(localStorage.getItem("techStack")) || ["Github"];
     const userId = localStorage.getItem("userId") || "12345";
     const experienceLevel = localStorage.getItem("experienceLevel") || "Intermediate";
 

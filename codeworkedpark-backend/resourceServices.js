@@ -18,7 +18,7 @@ async function fetchDynamicResources(query) {
       title: item.snippet.title,
       url: `https://www.youtube.com/watch?v=${item.id.videoId}`
     }));
-    console.log("Fetched resources:", [...youtubeResources]);
+    // console.log("Fetched resources:", [...youtubeResources]);
 
     // Fetch GitHub Repositories
     const githubRes = await axios.get(`https://api.github.com/search/repositories`, {
@@ -30,7 +30,7 @@ async function fetchDynamicResources(query) {
       url: repo.html_url
     }));
 
-    console.log("Fetched resources:", [...githubResources]);
+    // console.log("Fetched resources:", [...githubResources]);
 
     return [...youtubeResources,...githubResources];
   } catch (error) {
