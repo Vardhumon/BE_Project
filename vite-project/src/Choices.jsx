@@ -16,10 +16,14 @@ export default function Choices() {
 
   // 🔹 Load Previously Selected Tech Stack (if exists)
   useEffect(() => {
-    const savedTech = JSON.parse(localStorage.getItem("techStack")) || [];
+    const user = JSON.parse(localStorage.getItem("user")) || [];
+    const techstack = user.techStack ||  [];
+    console.log(techstack);
+    const experienceLevel = user.experienceLevel || (localStorage.getItem("experience")) || "";
     // Ensure proper separation of multiple tech stacks
-    const separatedTech = savedTech.flatMap(tech => tech.split(", ").map(t => t.trim()));
+    const separatedTech = techstack.flatMap(tech => tech.split(", ").map(t => t.trim()));
     setSelectedTech(separatedTech);
+    setExperience(experienceLevel);
   }, []);
 
   // 🔹 Handle Tech Selection (Select/Deselect)

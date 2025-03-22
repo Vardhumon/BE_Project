@@ -98,7 +98,7 @@
 
     return (
       <motion.div 
-        className="max-w-3xl mx-auto p-6 bg-black text-white shadow-lg rounded-xl mt-10 border border-gray-700 relative"
+        className="max-w-5xl mx-auto p-6 bg-black text-white shadow-lg rounded-xl mt-16 border border-gray-700 relative"
         initial={{ opacity: 0, y: 50 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}

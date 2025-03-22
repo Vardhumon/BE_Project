@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import toast, { Toaster } from "react-hot-toast";
+import io from "socket.io-client";
 import { motion, AnimatePresence } from "framer-motion";
 
 
-
+const socket = io("http://localhost:5000");
 const CommunityPage = () => {
     const [showModal, setShowModal] = useState(false);
     const [userProjects, setUserProjects] = useState([]);
@@ -25,7 +26,20 @@ const CommunityPage = () => {
             const community = pathParts[pathParts.length - 1] || "Other";
             console.log("Community:", community);
             const timer = setTimeout(() => setIsVisible(true), 1500);
-            return () => clearTimeout(timer);
+             // Listen for new project submissions in real-time
+        socket.on("new_project", (newProject) => {
+            console.log("New Project Received:", newProject);
+            
+            setSubmittedProjects((prevProjects) => [...prevProjects,newProject]);
+            toast.success("a new project has been submitted!");
+        });
+
+        // Cleanup socket listener on component unmount
+        return () => {
+            socket.off("new_project");
+            clearTimeout(timer);
+        };
+           
     }, []);
 
     const fetchSubmittedProjects = async () => {
@@ -33,6 +47,7 @@ const CommunityPage = () => {
             const pathParts = window.location.pathname.split("/");
             const community = pathParts[pathParts.length - 1] || "Other";
             const response = await axios.get("http://localhost:5000/api/getSubmittedProjects");
+            console.log("All Projects:", response.data);
             const filteredProjects = response.data.filter(project => project.community === community);
             console.log("Filtered Projects:", filteredProjects);
             setSubmittedProjects(filteredProjects);
@@ -104,6 +119,7 @@ const CommunityPage = () => {
                 setSelectedProject(null);
                 setSummary("");
                 setDeployedLink("");
+                socket.emit("project_submitted", response.data);
             } else {
                 alert("Failed to submit project.");
             }
@@ -114,6 +130,7 @@ const CommunityPage = () => {
     };
 
     return (
+        
         <div className="min-h-screen bg-[#0D1117] text-white p-8 mt-10">
             <Toaster />
             <div className="flex items-center justify-evenly mb-8">
@@ -128,102 +145,106 @@ const CommunityPage = () => {
                 </button>
             </div>
             </div>
-        
-            <div className="grid gap-6 max-w-4xl mx-auto">
-            {submittedProjects.map((project) => {
-                const isExpanded = expandedProject === project._id;
-
-                return (
-                    <div 
-                        key={project._id} 
-                        className="bg-[#161B22] p-6 rounded-lg shadow-lg cursor-pointer"
-                        onClick={() => toggleExpand(project._id)}
-                    >
-                        {/* Title and Summary */}
-                        <div className="flex items-center justify-between">
-                        <h2 className="text-2xl font-bold">{project.projectId.title}</h2>
-                        <div className="flex items-center gap-2">
-                            <p className="text-gray-400">Created by:</p>
-                            <p className="text-blue-400 drop-shadow-[0_0_10px_rgba(59,130,246,0.8)]">{project.username}</p>
-                        </div>
-
-                        </div>
-                        <p className="text-gray-400">{project.summary}</p>
-
-                        {/* Community Tag */}
-                        <div className="mt-4">
-                            <span className="font-semibold text-gray-300">Community:</span>
-                            <span className="bg-[#21262D] text-white px-3 py-1 text-sm rounded-lg ml-2">
-                                {project.community}
-                            </span>
-                        </div>
-
-                        {/* Deployment Link */}
-                        {project.deploymentLink && (
-                            <div className="mt-4">
-                                <a href={project.deploymentLink} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">
-                                    View Deployed Project
-                                </a>
+            {   submittedProjects.length === 0 ? 
+                <p className="text-gray-400 text-center">No projects submitted yet.</p>
+            :
+                <div className="grid gap-6 max-w-4xl mx-auto">
+                {submittedProjects.map((project) => {
+                    const isExpanded = expandedProject === project._id;
+    
+                    return (
+                        <div 
+                            key={project._id} 
+                            className="bg-[#161B22] p-6 rounded-lg shadow-lg cursor-pointer card"
+                            onClick={() => toggleExpand(project._id)}
+                        >
+                            {/* Title and Summary */}
+                            <div className="flex items-center justify-between">
+                            <h2 className="text-2xl font-bold">{project.projectId.title}</h2>
+                            <div className="flex items-center gap-2">
+                                <p className="text-gray-400">Created by:</p>
+                                <p className="text-blue-400 drop-shadow-[0_0_10px_rgba(59,130,246,0.8)]">{project.username}</p>
                             </div>
-                        )}
-
-                        {/* Expanded Section with Framer Motion */}
-                        <AnimatePresence>
-                            {isExpanded && (
-                                <motion.div 
-                                    initial={{ opacity: 0, height: 0 }}
-                                    animate={{ opacity: 1, height: "auto" }}
-                                    exit={{ opacity: 0, height: 0 }}
-                                    transition={{ duration: 0.3 }}
-                                    className="mt-4 p-4 bg-[#21262D] rounded-lg overflow-hidden"
-                                >
-                                    {/* Description */}
-                                    <p className="text-gray-300">{project.projectId.description}</p>
-
-                                    {/* Tech Stack */}
-                                    <div className="mt-4">
-                                        <span className="font-semibold text-gray-300">Tech Stack:</span>
-                                        <div className="flex flex-wrap gap-2 mt-2">
-                                            {project.projectId.techStack.map((tech, index) => (
-                                                <span key={index} className="bg-[#1E293B] text-white px-3 py-1 text-sm rounded-lg">
-                                                    {tech}
-                                                </span>
-                                            ))}
-                                        </div>
-                                    </div>
-
-                                    {/* Steps */}
-                                    <div className="mt-4">
-                                        <span className="font-semibold text-gray-300">Project Steps:</span>
-                                        <ul className="list-disc pl-5 text-gray-400 mt-2">
-                                            {project.projectId.steps.map((step) => (
-                                                <li key={step._id}>
-                                                    <strong>{step.step}</strong>
-                                                    <ul className="list-disc pl-5 mt-1">
-                                                        {step.subSteps.map((subStep, index) => (
-                                                            <li key={index} className="text-gray-500">{subStep}</li>
-                                                        ))}
-                                                    </ul>
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    </div>
-
-                                    {/* GitHub Link */}
-                                    {project.githubLink && (
-                                        <div className="mt-4">
-                                            <a href={project.githubLink} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">
-                                                View GitHub Repository
-                                            </a>
-                                        </div>
-                                    )}
-                                </motion.div>
+    
+                            </div>
+                            <p className="text-gray-400">{project.summary}</p>
+    
+                            {/* Community Tag */}
+                            <div className="mt-4">
+                                <span className="font-semibold text-gray-300">Community:</span>
+                                <span className="bg-[#21262D] text-white px-3 py-1 text-sm rounded-lg ml-2">
+                                    {project.community}
+                                </span>
+                            </div>
+    
+                            {/* Deployment Link */}
+                            {project.deploymentLink && (
+                                <div className="mt-4">
+                                    <a href={project.deploymentLink} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">
+                                        View Deployed Project
+                                    </a>
+                                </div>
                             )}
-                        </AnimatePresence>
-                    </div>
-                );
-            })}
-        </div>
+    
+                            {/* Expanded Section with Framer Motion */}
+                            <AnimatePresence>
+                                {isExpanded && (
+                                    <motion.div 
+                                        initial={{ opacity: 0, height: 0 }}
+                                        animate={{ opacity: 1, height: "auto" }}
+                                        exit={{ opacity: 0, height: 0 }}
+                                        transition={{ duration: 0.3 }}
+                                        className="mt-4 p-4 bg-[#21262D] rounded-lg overflow-hidden"
+                                    >
+                                        {/* Description */}
+                                        <p className="text-gray-300">{project.projectId.description}</p>
+    
+                                        {/* Tech Stack */}
+                                        <div className="mt-4">
+                                            <span className="font-semibold text-gray-300">Tech Stack:</span>
+                                            <div className="flex flex-wrap gap-2 mt-2">
+                                                {project.projectId.techStack.map((tech, index) => (
+                                                    <span key={index} className="bg-[#1E293B] text-white px-3 py-1 text-sm rounded-lg">
+                                                        {tech}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        </div>
+    
+                                        {/* Steps */}
+                                        <div className="mt-4">
+                                            <span className="font-semibold text-gray-300">Project Steps:</span>
+                                            <ul className="list-disc pl-5 text-gray-400 mt-2">
+                                                {project.projectId.steps.map((step) => (
+                                                    <li key={step._id}>
+                                                        <strong>{step.step}</strong>
+                                                        <ul className="list-disc pl-5 mt-1">
+                                                            {step.subSteps.map((subStep, index) => (
+                                                                <li key={index} className="text-gray-500">{subStep}</li>
+                                                            ))}
+                                                        </ul>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+    
+                                        {/* GitHub Link */}
+                                        {project.githubLink && (
+                                            <div className="mt-4">
+                                                <a href={project.githubLink} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">
+                                                    View GitHub Repository
+                                                </a>
+                                            </div>
+                                        )}
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </div>
+                    );
+                })}
+            </div>
+            }
+            
             {/* Modal */}
             {showModal && (
                 <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">

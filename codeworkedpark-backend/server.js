@@ -6,6 +6,8 @@ const cors = require("cors");
 const fs = require("fs");
 require("dotenv").config();
 const projects = require("./projects.json");
+const http = require("http");
+const { Server } = require("socket.io");
 // const { cosineSimilarity, enhanceSteps } = require("./utils");
 // const { fetchDynamicResources } = require("./resourceServices");
 // const { Octokit } = require("@octokit/rest");
@@ -144,12 +146,13 @@ app.post("/api/login", async (req, res) => {
   const { email, password } = req.body;
   try {
     const user = await User.findOne({ email });
+    const finaluser = {name: user.name,techStack: user.techStack, experienceLevel: user.experienceLevel, _id: user._id}
     if (!user || !(await bcrypt.compare(password, user.password))) {
       return res.status(400).json({ message: "Invalid credentials" });
     }
 
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: "1h" });
-    res.status(200).json({ token, user });
+    res.status(200).json({ token, user:finaluser});
   } catch (err) {
     res.status(500).json({ message: "Server error" });
   }
@@ -169,7 +172,7 @@ const recommendedProjectsSession = new Set();
 
 app.post("/api/getProject", async (req, res) => {
   const { userStack, experienceLevel } = req.body;
-  console.log(userStack, experienceLevel);
+  // console.log(userStack, experienceLevel);
 
   try {
     const projects = await Project.find();
@@ -438,13 +441,12 @@ app.get("/api/getSubmittedProjects", async (req, res) => {
   }
 });
 
-
-const http = require("http");
-const socketIo = require("socket.io");
-
 const server = http.createServer(app);
-const io = socketIo(server, {
-  cors: { origin: "*" }
+const io = new Server(server, {
+  cors: {
+    origin: "*", // Change this to your frontend URL in production
+    methods: ["GET", "POST"],
+  },
 });
 
 const commentSchema = new mongoose.Schema({
@@ -456,31 +458,24 @@ const commentSchema = new mongoose.Schema({
 
 const Comment = mongoose.model("Comment", commentSchema);
 
-// Handle WebSocket connections
 io.on("connection", (socket) => {
-  console.log("User connected");
+  console.log("New client connected:", socket.id);
 
-  socket.on("joinProject", (projectId) => {
-    socket.join(projectId);
-    console.log(`User joined project room: ${projectId}`);
-  });
-
-  socket.on("newComment", async ({ projectId, userId, comment }) => {
-    try {
-      const newComment = new Comment({ projectId, userId, comment });
-      await newComment.save();
-
-      // Emit to all users in the same project room
-      io.to(projectId).emit("commentAdded", newComment);
-    } catch (err) {
-      console.error("Error adding comment:", err);
-    }
+  socket.on("project_submitted", async (newProject) => {
+      console.log("New project received:", newProject);
+      try {
+          const subproject = await SubmittedProject.findById(newProject.project._id).populate("projectId");
+          io.emit("new_project", subproject); // Broadcast to all clients
+      } catch (error) {
+          console.error("Error fetching project:", error);
+      }
   });
 
   socket.on("disconnect", () => {
-    console.log("User disconnected");
+      console.log("Client disconnected:", socket.id);
   });
 });
+
 
 app.get("/api/community/:category", async (req, res) => {
   const { category } = req.params;

@@ -1,15 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import { motion, AnimatePresence } from "framer-motion";
-
-const steps = [
-  { question: "What's your name?", field: "name", type: "text" },
-  { question: "What's your email?", field: "email", type: "email" },
-  { question: "Create a password", field: "password", type: "password" },
-  { question: "Select Your Tech Stack", field: "techStack", type: "multi-select" },
-  { question: "What's your experience level?", field: "experienceLevel", type: "select" },
-];
+import { motion } from "framer-motion";
 
 const techOptions = [
   "React", "Node.js", "MongoDB", "Express", "Python", "Java", "Machine Learning",
@@ -21,21 +13,15 @@ const experienceLevels = ["Beginner", "Intermediate", "Expert"];
 const Signup = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    password: "",
-    techStack: [],
-    experienceLevel: "",
+    name: "", email: "", password: "", techStack: [], experienceLevel: "",
   });
 
-  const [step, setStep] = useState(0);
-
-  const handleNext = () => step < steps.length - 1 && setStep(step + 1);
-  const handlePrev = () => step > 0 && setStep(step - 1);
   const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
   const handleTechChange = (tech) => setFormData((prev) => ({
     ...prev,
-    techStack: prev.techStack.includes(tech) ? prev.techStack.filter((t) => t !== tech) : [...prev.techStack, tech],
+    techStack: prev.techStack.includes(tech)
+      ? prev.techStack.filter((t) => t !== tech)
+      : [...prev.techStack, tech],
   }));
   const handleExperienceChange = (level) => setFormData({ ...formData, experienceLevel: level });
 
@@ -52,49 +38,75 @@ const Signup = () => {
   };
 
   return (
-    <div className="flex justify-center items-center h-screen bg-transparent relative overflow-hidden">
-      {/* Floating Elements */}
-      <motion.div className="absolute top-10 right-20 w-32 h-32 bg-blue-400 opacity-30 blur-xl rounded-full" animate={{ y: [0, -20, 0] }} transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }} />
-      <motion.div className="absolute bottom-10 left-20 w-24 h-24 bg-purple-400 opacity-30 blur-xl rounded-full" animate={{ x: [0, 20, 0] }} transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }} />
-      
-      {/* Signup Form */}
-      <motion.div className="w-full max-w-lg p-8 bg-transparent backdrop-blur-lg border border-white/20 rounded-2xl shadow-2xl text-white relative" initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
-        <AnimatePresence mode="wait">
-          <motion.div key={step} initial={{ opacity: 0, x: 50 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -50 }} transition={{ duration: 0.5 }}>
-            <h2 className="text-3xl font-semibold text-center">{steps[step].question}</h2>
-            
-            {/* Input Fields */}
-            {steps[step].type === "text" || steps[step].type === "email" || steps[step].type === "password" ? (
-              <input type={steps[step].type} name={steps[step].field} value={formData[steps[step].field]} onChange={handleChange} className="w-full p-3 mt-6 bg-white/10 text-white border border-white/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-lg" required />
-            ) : steps[step].type === "multi-select" ? (
-              <div className="flex flex-wrap gap-2 mt-6">
-                {techOptions.map((tech) => (
-                  <button key={tech} type="button" onClick={() => handleTechChange(tech)} className={`px-4 py-2 text-lg border rounded-lg ${formData.techStack.includes(tech) ? "bg-blue-500 text-white" : "bg-white/10 text-gray-300"}`}>{tech}</button>
-                ))}
-              </div>
-            ) : steps[step].type === "select" ? (
-              <div className="flex gap-4 mt-6">
-                {experienceLevels.map((level) => (
-                  <button key={level} type="button" onClick={() => handleExperienceChange(level)} className={`px-4 py-2 text-lg border rounded-lg ${formData.experienceLevel === level ? "bg-blue-500 text-white" : "bg-white/10 text-gray-300"}`}>{level}</button>
-                ))}
-              </div>
-            ) : null}
-          </motion.div>
-        </AnimatePresence>
-        
-        {/* Navigation Buttons */}
-        <div className="flex justify-between mt-8">
-          <button onClick={handlePrev} disabled={step === 0} className={`px-5 py-3 text-lg rounded-lg transition ${step === 0 ? "bg-gray-600 cursor-not-allowed" : "bg-gray-500 hover:bg-gray-400"}`}>Previous</button>
-          {step === steps.length - 1 ? (
-            <button onClick={handleSubmit} className="px-5 py-3 text-lg bg-green-500 rounded-lg hover:bg-green-600 transition">Submit</button>
-          ) : (
-            <button onClick={handleNext} className="px-5 py-3 text-lg bg-blue-500 rounded-lg hover:bg-blue-600 transition">Next</button>
-          )}
+    <div className="flex h-screen w-screen bg-black text-white mt-10">
+      {/* Left Section - Form */}
+      <div className="w-4/5 p-10 overflow-y-auto flex flex-col items-center overflow-y-hidden">
+      <div className="w-3/5">
+      <h2 className="text-4xl font-semibold mb-6">Sign Up</h2>
+      </div>
+        <div className="space-y-5 w-3/5">
+          {/* Name */}
+          <input type="text" name="name" placeholder="Your Name" value={formData.name} onChange={handleChange} className="w-3/4 p-3 bg-white/10 border border-white/30 rounded-lg focus:ring-4 focus:ring-white text-lg" />
+          {/* Email */}
+          <input type="email" name="email" placeholder="Your Email" value={formData.email} onChange={handleChange} className="w-3/4 p-3 bg-white/10 border border-white/30 rounded-lg focus:ring-4 focus:ring-white text-lg" />
+          {/* Password */}
+          <input type="password" name="password" placeholder="Create Password" value={formData.password} onChange={handleChange} className="w-3/4 p-3 bg-white/10 border border-white/30 rounded-lg focus:ring-4 focus:ring-white text-lg" />
+          {/* Tech Stack */}
+      <h3 className="text-xl font-semibold mb-6">Tech Stack</h3>
+          <div className="flex flex-wrap gap-2">
+            {techOptions.map((tech) => (
+              <button key={tech} onClick={() => handleTechChange(tech)} className={`px-4 py-2 rounded-lg border transition duration-300 text-lg ${formData.techStack.includes(tech) ? "bg-white text-black" : "bg-black text-white border-white hover:bg-white hover:text-black"}`}>
+                {tech}
+              </button>
+            ))}
+          </div>
+      <h3 className="text-xl font-semibold mb-6">Experience Level</h3>
+          {/* Experience Level */}
+          <div className="flex gap-4">
+            {experienceLevels.map((level) => (
+              <button key={level} onClick={() => handleExperienceChange(level)} className={`px-6 py-3 text-lg border rounded-lg transition duration-300 ${formData.experienceLevel === level ? "bg-white text-black" : "bg-black text-white border-white hover:bg-white hover:text-black"}`}>
+                {level}
+              </button>
+            ))}
+          </div>
+          {/* Submit Button */}
+          <div className="flex items-center gap-4">
+          <motion.button
+            onClick={handleSubmit}
+            whileHover={{ scale: 1.05, boxShadow: "0px 0px 15px rgba(255, 255, 255, 0.8)" }}
+            whileTap={{ scale: 0.95 }}
+            className="w-1/3 bg-white text-black hover:bg-gray-300 transition py-3 text-xl rounded-lg font-semibold self-center"
+          >
+            Sign Up
+          </motion.button>
+        <p className="mt-6 text-gray-400">Already registered? <button onClick={() => navigate("/login")} className="text-white hover:underline">Login here</button></p>
+
+          </div>
         </div>
-        
-        {/* Login Link */}
-        <p className="mt-6 text-center text-gray-300">Already registered? <button onClick={() => navigate("/login")} className="text-blue-400 hover:underline">Login here</button></p>
-      </motion.div>
+            <div className="w-3/5 mb-6">
+
+            </div>
+      </div>
+
+      {/* Right Section - Animation */}
+      <div className="w-1/5 flex justify-center items-center relative overflow-hidden">
+        {[...Array(10)].map((_, i) => (
+          <motion.div
+            key={i}
+            initial={{ opacity: 0, scale: 0.5, y: 50 }}
+            animate={{ opacity: 0.7, scale: 1, y: -50 }}
+            transition={{ duration: 6, repeat: Infinity, repeatType: "mirror", delay: i * 0.8 }}
+            className="absolute bg-white rounded-full blur-3xl"
+            style={{
+              width: `${30 + i * 30}px`,
+              height: `${30 + i * 30}px`,
+              top: `${Math.random() * 100}%`,
+              left: `${50 + Math.random() * 50}%`,
+              opacity: 0.3,
+            }}
+          />
+        ))}
+      </div>
     </div>
   );
 };
