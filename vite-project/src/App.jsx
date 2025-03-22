@@ -9,6 +9,9 @@ import Login from "./Login";
 import Choices from "./Choices";
 import ProjectDetails from "./ProjectDetails";
 import ProjectRecommendation from "./ProjectRecommendation";
+import Community from "./Community";
+import CommunityPage from "./CommunityPage";
+import './App.css';
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -84,6 +87,11 @@ export default function App() {
             path="/project-details" 
             element={<ProjectRecommendation />} 
           />
+          <Route 
+            path="/community" 
+            element={<Community />} 
+          />
+          <Route path="/community/:slug" element={<CommunityPage />}/>
         </Routes>
       </div>
     </Router>

@@ -12,7 +12,6 @@ const projects = require("./projects.json");
 // const { exec } = require("child_process");
 
 const app = express();
-const PORT = process.env.PORT || 5000;
 
 // Middleware
 app.use(cors({ origin: '*' }));
@@ -189,7 +188,7 @@ app.post("/api/getProject", async (req, res) => {
 
     const randomIndex = Math.floor(Math.random() * availableProjects.length);
     const recommendedProject = availableProjects[randomIndex].toObject();
-    console.log(recommendedProject);
+    // console.log(recommendedProject);
     recommendedProjectsSession.add(recommendedProject._id.toString());
 
     // recommendedProject.steps = enhanceSteps(recommendedProject.steps, experienceLevel);
@@ -208,18 +207,21 @@ app.post("/api/getProject", async (req, res) => {
 
 app.post("/api/acceptProject", async (req, res) => {
   const { userId, projectId, repoUrl } = req.body;
-
+  // console.log(userId, projectId, repoUrl);
   try {
     const user = await User.findById(userId);
+    console.log(user.name);
     if (!user) return res.status(404).json({ message: "User not found" });
 
     const project = await Project.findById(projectId);
     if (!project) return res.status(404).json({ message: "Project not found" });
+    // console.log(project);
 
     // Check if project is already accepted
     const isProjectAccepted = user.projects.some((p) => p.projectId.equals(projectId));
-    if (isProjectAccepted) return res.status(400).json({ message: "Project already accepted" });
+    // console.log(user.projects);
 
+    if (isProjectAccepted) return res.status(400).json({ message: "Project already accepted" });
     // Initialize tasks for the user
     const taskProgress = project.steps.map((step) => ({
       taskId: step._id, // Ensure the steps in Project schema have `_id` field
@@ -267,21 +269,28 @@ app.post("/api/update-task-progress", async (req, res) => {
 app.post("/api/getUserProjects", async (req, res) => {
   try {
     const { userId } = req.body;
-    
+    // console.log(req.body);
+
     const user = await User.findById(userId).populate("projects.projectId");
-    // console.log(user)
+    // console.log(user);
     if (!user) return res.status(404).json({ message: "User not found" });
 
     // Filter out any null projectId values (in case of invalid references)
     const validProjects = user.projects
-      .map(p => p.projectId)
-      .filter(project => project !== null);
+      .map(p => ({
+        projectId: p.projectId, 
+        repoUrl: p.repoUrl // Ensure repoUrl is included in the response
+      }))
+      .filter(project => project.projectId !== null);
+
+    // console.log(validProjects);
 
     res.status(200).json({ projects: validProjects });
   } catch (error) {
     res.status(500).json({ message: "Error fetching projects", error: error.message });
   }
 });
+
 
 app.post("/api/getUserProgress", async (req, res) => {
   try {
@@ -357,7 +366,143 @@ app.post("/api/verifyGithubRepo", async (req, res) => {
   }
 });
 
+const submittedProjectSchema = new mongoose.Schema({
+  projectId: { type: mongoose.Schema.Types.ObjectId, ref: "Project" },
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+  username: String,
+  githubLink: String,
+  deploymentLink: String,
+  summary: String,
+  community: String, // Example: "Full Stack", "ML", "AI"
+  comments: [{ type: mongoose.Schema.Types.ObjectId, ref: "Comment" }]
+}, { timestamps: true });
+
+const SubmittedProject = mongoose.model("SubmittedProject", submittedProjectSchema);
+
+app.post("/api/submitProject", async (req, res) => {
+  const { userId,username, projectId, githubLink, deploymentLink, summary, community } = req.body;
+
+  try {
+      // Validate User
+      const user = await User.findById(userId);
+      if (!user) return res.status(404).json({ message: "User not found" });
+
+      // Validate Project
+      const project = await Project.findById(projectId);
+      if (!project) return res.status(404).json({ message: "Project not found" });
+
+      // Check if project is already submitted by this user
+      const existingSubmission = await SubmittedProject.findOne({ projectId, userId });
+      if (existingSubmission) {
+          return res.status(400).json({ message: "You have already submitted this project." });
+      }
+
+      // Create a new submission
+      const submittedProject = new SubmittedProject({
+          projectId,
+          userId,
+          username,
+          githubLink,
+          deploymentLink,
+          summary,
+          community,
+          comments: [],
+      });
+
+      await submittedProject.save();
+
+      res.status(201).json({ message: "Project submitted successfully", project: submittedProject });
+  } catch (err) {
+      res.status(500).json({ message: "Error submitting project", error: err.message });
+  }
+});
 
 
-// Start Server
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.get("/api/community/:community", async (req, res) => {
+  try {
+    const { community } = req.params;
+    const projects = await SubmittedProject.find({ community }).populate("projectId comments");
+
+    res.status(200).json(projects);
+  } catch (err) {
+    res.status(500).json({ message: "Error fetching community posts", error: err.message });
+  }
+});
+
+app.get("/api/getSubmittedProjects", async (req, res) => {
+  try {
+      const projects = await SubmittedProject.find().populate("projectId");
+      res.json(projects);
+  } catch (error) {
+      res.status(500).json({ message: "Error fetching submitted projects" });
+  }
+});
+
+
+const http = require("http");
+const socketIo = require("socket.io");
+
+const server = http.createServer(app);
+const io = socketIo(server, {
+  cors: { origin: "*" }
+});
+
+const commentSchema = new mongoose.Schema({
+  projectId: { type: mongoose.Schema.Types.ObjectId, ref: "SubmittedProject" },
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+  comment: String,
+  createdAt: { type: Date, default: Date.now }
+});
+
+const Comment = mongoose.model("Comment", commentSchema);
+
+// Handle WebSocket connections
+io.on("connection", (socket) => {
+  console.log("User connected");
+
+  socket.on("joinProject", (projectId) => {
+    socket.join(projectId);
+    console.log(`User joined project room: ${projectId}`);
+  });
+
+  socket.on("newComment", async ({ projectId, userId, comment }) => {
+    try {
+      const newComment = new Comment({ projectId, userId, comment });
+      await newComment.save();
+
+      // Emit to all users in the same project room
+      io.to(projectId).emit("commentAdded", newComment);
+    } catch (err) {
+      console.error("Error adding comment:", err);
+    }
+  });
+
+  socket.on("disconnect", () => {
+    console.log("User disconnected");
+  });
+});
+
+app.get("/api/community/:category", async (req, res) => {
+  const { category } = req.params;
+  const projects = await Project.find({ category });
+  res.json({ projects });
+});
+
+
+app.get("/api/user-projects/:userId", async (req, res) => {
+  const { userId } = req.params;
+  const projects = await Project.find({ userId });
+  res.json({ projects });
+});
+
+app.post("/api/community-post", async (req, res) => {
+  const { title, techStack, level, summary, link, category } = req.body;
+  const project = new Project({ title, techStack, level, summary, link, category });
+  await project.save();
+  res.json({ success: true, project });
+});
+
+
+// Start server with WebSockets
+const PORT = process.env.PORT || 5000;
+server.listen(PORT, () => console.log(`Server running on port ${PORT}`));

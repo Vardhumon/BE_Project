@@ -13,10 +13,11 @@ export default function Profile() {
   useEffect(() => {
     axios
       .post("http://localhost:5000/api/getUserProjects", {
-        userId: "679f4c0b62462cb876bafceb",
+        userId: JSON.parse(localStorage.getItem("user"))._id,
       })
       .then((res) => {
         setProjects(res.data.projects);
+        console.log(res.data.projects);
         setLoading(false);
       })
       .catch((err) => {
@@ -101,7 +102,7 @@ export default function Profile() {
         <div className="space-y-4 mt-6">
           {projects.map((project, index) => (
             <motion.div
-              key={project._id}
+              key={index*100}
               className="p-5 border border-gray-600 bg-white/10 backdrop-blur-xl rounded-lg shadow-md"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -109,16 +110,16 @@ export default function Profile() {
             >
               <h2
                 className="text-lg font-semibold cursor-pointer"
-                onClick={() => toggleProject(project._id)}
+                onClick={() => toggleProject(project.projectId._id)}
               >
-                {project.title}
+                {project.projectId.title}
               </h2>
-              <p className="text-gray-300 mt-1">{project.description}</p>
+              <p className="text-gray-300 mt-1">{project.projectId.description}</p>
 
-              {expandedProject === project._id && (
+              {expandedProject === project.projectId._id && (
                 <div className="mt-4">
-                  {project.steps.map((step) => (
-                    <div key={step._id} className="mb-3">
+                  {project.projectId.steps.map((step,index) => (
+                    <div key={index} className="mb-3">
                       <h3 className="text-white font-medium">{step.step}</h3>
                       <ul className="ml-4 mt-2 space-y-2">
                         {step.subSteps.map((subStep, idx) => (
@@ -126,12 +127,12 @@ export default function Profile() {
                             <input
                               type="checkbox"
                               checked={
-                                completedSteps[project._id]?.[step._id]?.includes(
+                                completedSteps[project.projectId._id]?.[step._id]?.includes(
                                   subStep
                                 ) || false
                               }
                               onChange={() =>
-                                handleCheckboxChange(project._id, step._id, subStep)
+                                handleCheckboxChange(project.projectId._id, step._id, subStep)
                               }
                               className="form-checkbox h-4 w-4 text-blue-600"
                             />
@@ -142,7 +143,7 @@ export default function Profile() {
                     </div>
                   ))}
                   <button
-                    onClick={() => handleSubmit(project._id)}
+                    onClick={() => handleSubmit(project.projectId._id)}
                     className="mt-4 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
                   >
                     Submit Progress

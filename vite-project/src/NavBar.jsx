@@ -17,7 +17,7 @@ export default function Navbar({ user }) {
     <motion.nav
       initial={{ opacity: 0, y: -20 }}
       animate={{ opacity: isVisible ? 1 : 0, y: isVisible ? 0 : -20 }}
-      transition={{ duration: 1 }}
+      transition={{ duration: .5 }}
       className="fixed top-0 left-0 w-full px-6 py-4 flex justify-between items-center z-50 
                  bg-black/30 backdrop-blur-md shadow-md border-b border-white/10 mb-5"
     >
